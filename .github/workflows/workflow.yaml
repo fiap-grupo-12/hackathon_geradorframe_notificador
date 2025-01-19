@@ -1,0 +1,151 @@
+name: 'Terraform'
+
+on:
+  push:
+    branches: [ "main", "release/*" ]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  Build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./src/fiap.hackathon.enviar_email
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release
+
+      #- name: Test
+      #  run: dotnet test /p:CollectCoverage=true --collect:"XPlat Code Coverage" --results-directory ./coverage -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+
+  # SonarCloud:
+  #   needs: Build
+  #   runs-on: ubuntu-latest
+  #   defaults:
+  #     run:
+  #       working-directory: ./src
+
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/labeler@v4
+  #     - name: Analyze with SonarCloud
+  #       uses: SonarSource/sonarcloud-github-action@4006f663ecaf1f8093e8e4abb9227f6041f52216
+  #       env:
+  #         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  #       with:
+  #         args:
+  #           -Dsonar.projectKey=fiap-grupo-12_TechChallenge_Lambda_Pedido
+  #           -Dsonar.organization=fiap-grupo-12
+  #           -Dsonar.cs.opencover.reportsPaths=coverage/**/coverage.opencover.xml
+  #         projectBaseDir: .
+
+  Publish:
+    #needs: SonarCloud
+    needs: Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./src/fiap.hackathon.enviar_email
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Install Amazon Lambda Tools
+        run: dotnet tool install -g Amazon.Lambda.Tools
+        
+      - name: Publish Lambda Package
+        run: dotnet lambda package --configuration Release --output-package ./lambda_pedido_function.zip
+
+      - name: Configure AWS credentials
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Verificando se bucket está criado
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          BUCKET_NAME="lambdas-grupo12-fiap-2024-cesar-20250110"
+            REGION="us-east-1"
+
+            if ! aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
+              echo "Bucket não existe. Criando bucket..."
+              aws s3api create-bucket --bucket "$BUCKET_NAME"
+            else
+              echo "Bucket validado. Processo de upload."
+            fi
+
+      - name: Upload to S3
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          BUCKET_NAME="lambdas-grupo12-fiap-2024-cesar-20250110"
+          aws s3api head-bucket --bucket "$BUCKET_NAME" || aws s3api create-bucket --bucket "$BUCKET_NAME"
+          aws s3 cp lambda_pedido_function.zip s3://$BUCKET_NAME/
+
+  CreateLambda: 
+    needs: 'Publish'
+    runs-on: ubuntu-latest 
+    defaults:
+      run:
+        working-directory: ./infra
+        shell: bash
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v3
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+        
+    - name: Verificando se bucket está criado
+      run: |
+            BUCKET_NAME="terraform-tfstate-grupo12-fiap-2024"
+            REGION="us-east-1"
+
+            if ! aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
+              echo "Bucket não existe. Criando bucket..."
+              aws s3api create-bucket --bucket "$BUCKET_NAME"
+            else
+              echo "Bucket validado. Processo de upload."
+            fi
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v1
+    
+    - name: Terraform Init
+      run: terraform init
+
+    - name: Terraform Format
+      run: terraform fmt -check
+
+    - name: Terraform Plan
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: terraform plan -input=false
+
+    - name: Apply Terraform
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: terraform apply -auto-approve
