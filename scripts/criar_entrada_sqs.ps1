@@ -1,0 +1,1 @@
+aws sqs send-message --queue-url https://sqs.us-east-1.amazonaws.com/339712873428/email-sqs-queue --message-body '{"Nome": "Cesar", "Email": "cesaraperes@gmail.com", "Assunto": "Imagens geradas com sucesso 10", "Corpo": "Olá, veja as imagens no link abaixo"}'
