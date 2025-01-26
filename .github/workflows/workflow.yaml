@@ -102,6 +102,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v1
 
@@ -113,10 +120,10 @@ jobs:
 
       - name: Terraform Plan
         run: terraform plan -var "sendgrid_api_key=${{ env.SENDGRID_API_KEY }}" \
-                             -var "email_from=${{ env.EMAIL_FROM }}" \
-                             -var "name_from=${{ env.NAME_FROM }}" -input=false
+                            -var "email_from=${{ env.EMAIL_FROM }}" \
+                            -var "name_from=${{ env.NAME_FROM }}" -input=false
 
       - name: Apply Terraform
         run: terraform apply -var "sendgrid_api_key=${{ env.SENDGRID_API_KEY }}" \
-                             -var "email_from=${{ env.EMAIL_FROM }}" \
-                             -var "name_from=${{ env.NAME_FROM }}" -auto-approve
+                            -var "email_from=${{ env.EMAIL_FROM }}" \
+                            -var "name_from=${{ env.NAME_FROM }}" -auto-approve
