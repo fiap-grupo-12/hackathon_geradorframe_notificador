@@ -2,13 +2,40 @@ name: 'Terraform'
 
 on:
   push:
-    branches: [ "main", "release/*" ]
+    branches:
+      - "main"
+      - "release/*"
 
 permissions:
   pull-requests: read
 
+env:
+  BUCKET_NAME: "lambdas-grupo12-fiap-2024-cesar-20250110"
+  AWS_REGION: "us-east-1"
+
 jobs:
+  SetupEnvironment:
+    runs-on: ubuntu-latest
+    outputs:
+      bucket_name: ${{ env.BUCKET_NAME }}
+      aws_region: ${{ env.AWS_REGION }}
+
+    steps:
+      - name: Configure AWS credentials
+        id: configure_aws
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Export Secrets for Terraform
+        run: |
+          echo "SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }}" >> $GITHUB_ENV
+          echo "EMAIL_FROM=${{ secrets.EMAIL_FROM }}" >> $GITHUB_ENV
+          echo "NAME_FROM=${{ secrets.NAME_FROM }}" >> $GITHUB_ENV
+
   Build:
+    needs: SetupEnvironment
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -28,33 +55,9 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release
 
-      #- name: Test
-      #  run: dotnet test /p:CollectCoverage=true --collect:"XPlat Code Coverage" --results-directory ./coverage -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
-
-  # SonarCloud:
-  #   needs: Build
-  #   runs-on: ubuntu-latest
-  #   defaults:
-  #     run:
-  #       working-directory: ./src
-
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/labeler@v4
-  #     - name: Analyze with SonarCloud
-  #       uses: SonarSource/sonarcloud-github-action@4006f663ecaf1f8093e8e4abb9227f6041f52216
-  #       env:
-  #         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-  #       with:
-  #         args:
-  #           -Dsonar.projectKey=fiap-grupo-12_TechChallenge_Lambda_Pedido
-  #           -Dsonar.organization=fiap-grupo-12
-  #           -Dsonar.cs.opencover.reportsPaths=coverage/**/coverage.opencover.xml
-  #         projectBaseDir: .
-
   Publish:
-    #needs: SonarCloud
-    needs: Build
+    needs: [SetupEnvironment, Build]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -70,82 +73,42 @@ jobs:
 
       - name: Install Amazon Lambda Tools
         run: dotnet tool install -g Amazon.Lambda.Tools
-        
+
       - name: Publish Lambda Package
-        run: dotnet lambda package --configuration Release --output-package ./lambda_pedido_function.zip
-
-      - name: Configure AWS credentials
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: aws-actions/configure-aws-credentials@v3
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-
-      - name: Verificando se bucket está criado
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: |
-          BUCKET_NAME="lambdas-grupo12-fiap-2024-cesar-20250110"
-            REGION="us-east-1"
-
-            if ! aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
-              echo "Bucket não existe. Criando bucket..."
-              aws s3api create-bucket --bucket "$BUCKET_NAME"
-            else
-              echo "Bucket validado. Processo de upload."
-            fi
+        run: dotnet lambda package --configuration Release --output-package ./lambda_enviar_email_function.zip
 
       - name: Upload to S3
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
-          BUCKET_NAME="lambdas-grupo12-fiap-2024-cesar-20250110"
-          aws s3api head-bucket --bucket "$BUCKET_NAME" || aws s3api create-bucket --bucket "$BUCKET_NAME"
-          aws s3 cp lambda_pedido_function.zip s3://$BUCKET_NAME/
+          aws s3 cp lambda_enviar_email_function.zip s3://${{ needs.SetupEnvironment.outputs.bucket_name }}/
 
-  CreateLambda: 
-    needs: 'Publish'
-    runs-on: ubuntu-latest 
+  CreateLambda:
+    needs: Publish
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./infra
         shell: bash
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v3
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
-        
-    - name: Verificando se bucket está criado
-      run: |
-            BUCKET_NAME="terraform-tfstate-grupo12-fiap-2024"
-            REGION="us-east-1"
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
 
-            if ! aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
-              echo "Bucket não existe. Criando bucket..."
-              aws s3api create-bucket --bucket "$BUCKET_NAME"
-            else
-              echo "Bucket validado. Processo de upload."
-            fi
+      - name: Terraform Init
+        run: terraform init
 
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v1
-    
-    - name: Terraform Init
-      run: terraform init
+      - name: Terraform Format
+        run: terraform fmt -check
 
-    - name: Terraform Format
-      run: terraform fmt -check
+      - name: Terraform Plan
+        run: terraform plan -var "sendgrid_api_key=${{ env.SENDGRID_API_KEY }}" \
+                             -var "email_from=${{ env.EMAIL_FROM }}" \
+                             -var "name_from=${{ env.NAME_FROM }}" -input=false
 
-    - name: Terraform Plan
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      run: terraform plan -input=false
-
-    - name: Apply Terraform
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      run: terraform apply -auto-approve
+      - name: Apply Terraform
+        run: terraform apply -var "sendgrid_api_key=${{ env.SENDGRID_API_KEY }}" \
+                             -var "email_from=${{ env.EMAIL_FROM }}" \
+                             -var "name_from=${{ env.NAME_FROM }}" -auto-approve

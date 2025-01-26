@@ -78,9 +78,9 @@ resource "aws_lambda_function" "send_email_function" {
 
   environment {
     variables = {
-      SENDGRID_API_KEY = "***"
-      EMAIL_FROM       = "***"
-      NAME_FROM        = "***"
+      SENDGRID_API_KEY = var.sendgrid_api_key
+      EMAIL_FROM       = var.email_from
+      NAME_FROM        = var.name_from
     }
   }
 
