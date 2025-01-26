@@ -118,12 +118,21 @@ jobs:
       - name: Terraform Format
         run: terraform fmt -check
 
+      - name: Validate Environment Variables
+        run: |
+          if [ -z "${{ env.SENDGRID_API_KEY }}" ] || [ -z "${{ env.EMAIL_FROM }}" ] || [ -z "${{ env.NAME_FROM }}" ]; then
+            echo "Error: One or more required environment variables are empty."
+            exit 1
+          fi
+
       - name: Terraform Plan
-        run: terraform plan -var="sendgrid_api_key=${{ env.SENDGRID_API_KEY }}" \
+        run: terraform plan -chdir=./infra \
+                             -var="sendgrid_api_key=${{ env.SENDGRID_API_KEY }}" \
                              -var="email_from=${{ env.EMAIL_FROM }}" \
                              -var="name_from=${{ env.NAME_FROM }}" -input=false
 
       - name: Terraform Apply
-        run: terraform apply -var="sendgrid_api_key=${{ env.SENDGRID_API_KEY }}" \
+        run: terraform apply -chdir=./infra \
+                             -var="sendgrid_api_key=${{ env.SENDGRID_API_KEY }}" \
                              -var="email_from=${{ env.EMAIL_FROM }}" \
                              -var="name_from=${{ env.NAME_FROM }}" -input=false -auto-approve
