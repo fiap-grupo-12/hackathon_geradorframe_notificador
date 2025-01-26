@@ -22,12 +22,18 @@ jobs:
 
     steps:
       - name: Configure AWS credentials
-        id: configure_aws
         uses: aws-actions/configure-aws-credentials@v3
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Validate Required Variables
+        run: |
+          if [ -z "${{ secrets.SENDGRID_API_KEY }}" ] || [ -z "${{ secrets.EMAIL_FROM }}" ] || [ -z "${{ secrets.NAME_FROM }}" ]; then
+            echo "Error: One or more required environment variables are empty."
+            exit 1
+          fi
       - name: Export Secrets for Terraform
         run: |
           echo "SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }}" >> $GITHUB_ENV
@@ -44,6 +50,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -118,21 +125,12 @@ jobs:
       - name: Terraform Format
         run: terraform fmt -check
 
-      - name: Validate Environment Variables
-        run: |
-          if [ -z "${{ env.SENDGRID_API_KEY }}" ] || [ -z "${{ env.EMAIL_FROM }}" ] || [ -z "${{ env.NAME_FROM }}" ]; then
-            echo "Error: One or more required environment variables are empty."
-            exit 1
-          fi
-
       - name: Terraform Plan
-        run: terraform plan -chdir=./infra \
-                             -var="sendgrid_api_key=${{ env.SENDGRID_API_KEY }}" \
-                             -var="email_from=${{ env.EMAIL_FROM }}" \
-                             -var="name_from=${{ env.NAME_FROM }}" -input=false
+        run: terraform plan -var "sendgrid_api_key=${{ secrets.SENDGRID_API_KEY }}" \
+                              -var "email_from=${{ secrets.EMAIL_FROM }}" \
+                              -var "name_from=${{ secrets.NAME_FROM }}" -input=false
 
-      - name: Terraform Apply
-        run: terraform apply -chdir=./infra \
-                             -var="sendgrid_api_key=${{ env.SENDGRID_API_KEY }}" \
-                             -var="email_from=${{ env.EMAIL_FROM }}" \
-                             -var="name_from=${{ env.NAME_FROM }}" -input=false -auto-approve
+      - name: Apply Terraform
+        run: terraform apply -var "sendgrid_api_key=${{ secrets.SENDGRID_API_KEY }}" \
+                              -var "email_from=${{ secrets.EMAIL_FROM }}" \
+                              -var "name_from=${{ secrets.NAME_FROM }}" -auto-approve
