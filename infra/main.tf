@@ -25,7 +25,7 @@ resource "aws_iam_role" "lambda_execution_role" {
   name = "lambda-execution-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
-    Statement: [
+    Statement : [
       {
         Action = "sts:AssumeRole",
         Effect = "Allow",
@@ -42,7 +42,7 @@ resource "aws_iam_policy" "lambda_policy" {
   description = "Policy for Lambda to access SQS"
   policy = jsonencode({
     Version = "2012-10-17",
-    Statement: [
+    Statement : [
       {
         Action = [
           "sqs:ReceiveMessage",
@@ -53,8 +53,8 @@ resource "aws_iam_policy" "lambda_policy" {
         Resource = aws_sqs_queue.email_queue.arn
       },
       {
-        Action = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
-        Effect = "Allow",
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
+        Effect   = "Allow",
         Resource = "arn:aws:logs:*:*:*"
       }
     ]
@@ -67,10 +67,10 @@ resource "aws_iam_role_policy_attachment" "lambda_policy_attachment" {
 }
 
 resource "aws_lambda_function" "send_email_function" {
-  function_name    = "lambda_enviar_email_function"
-  role             = aws_iam_role.lambda_execution_role.arn
-  handler          = "fiap.hackathon.enviar_email::fiap.hackathon.enviar_email.Function::FunctionHandler"
-  runtime          = "dotnet8"
+  function_name = "lambda_enviar_email_function"
+  role          = aws_iam_role.lambda_execution_role.arn
+  handler       = "fiap.hackathon.enviar_email::fiap.hackathon.enviar_email.Function::FunctionHandler"
+  runtime       = "dotnet8"
   memory_size   = 512
   timeout       = 30
   s3_bucket     = "lambdas-grupo12-fiap-2024-cesar-20250110"
