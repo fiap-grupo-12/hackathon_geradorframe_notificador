@@ -136,3 +136,4 @@ jobs:
         run: terraform apply -auto-approve -var "sendgrid_api_key=${{ secrets.SENDGRID_API_KEY }}" \
                               -var "email_from=${{ secrets.EMAIL_FROM }}" \
                               -var "name_from=${{ secrets.NAME_FROM }}" 
+                              
