@@ -127,12 +127,12 @@ jobs:
 
       - name: Terraform Plan
         working-directory: ./infra
-        run: terraform plan -var "sendgrid_api_key=${{ secrets.SENDGRID_API_KEY }}" \
-                              -var "email_from=${{ secrets.EMAIL_FROM }}" \
-                              -var "name_from=${{ secrets.NAME_FROM }}" -input=false
+        run: terraform plan # -var "sendgrid_api_key=${{ secrets.SENDGRID_API_KEY }}" \
+        #                       -var "email_from=${{ secrets.EMAIL_FROM }}" \
+        #                       -var "name_from=${{ secrets.NAME_FROM }}" -input=false
 
       - name: Apply Terraform
         working-directory: ./infra
-        run: terraform apply -var "sendgrid_api_key=${{ secrets.SENDGRID_API_KEY }}" \
-                              -var "email_from=${{ secrets.EMAIL_FROM }}" \
-                              -var "name_from=${{ secrets.NAME_FROM }}" -auto-approve
+        run: terraform apply -auto-approve #-var "sendgrid_api_key=${{ secrets.SENDGRID_API_KEY }}" \
+                             # -var "email_from=${{ secrets.EMAIL_FROM }}" \
+                             # -var "name_from=${{ secrets.NAME_FROM }}" 
