@@ -125,14 +125,16 @@ jobs:
       - name: Terraform Format
         run: terraform fmt -check
 
+      - name: Create terraform.tfvars
+        run: |
+          echo "sendgrid_api_key=\"${{ secrets.SENDGRID_API_KEY }}\"" > terraform.tfvars"
+          echo "email_from=\"${{ secrets.EMAIL_FROM }}\"" >> terraform.tfvars
+          echo "name_from=\"${{ secrets.NAME_FROM }}\"" >> terraform.tfvars
+
       - name: Terraform Plan
         working-directory: ./infra
-        run: terraform plan  -input=false -var "sendgrid_api_key=${{ secrets.SENDGRID_API_KEY }}" \
-                               -var "email_from=${{ secrets.EMAIL_FROM }}" \
-                               -var "name_from=${{ secrets.NAME_FROM }}" 
+        run: terraform plan -input=false
 
       - name: Apply Terraform
         working-directory: ./infra
-        run: terraform apply -auto-approve -var "sendgrid_api_key=${{ secrets.SENDGRID_API_KEY }}" \
-                              -var "email_from=${{ secrets.EMAIL_FROM }}" \
-                              -var "name_from=${{ secrets.NAME_FROM }}" 
+        run: terraform apply -auto-approve -input=false
