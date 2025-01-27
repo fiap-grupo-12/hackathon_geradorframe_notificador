@@ -127,9 +127,10 @@ jobs:
 
       - name: Create terraform.tfvars
         run: |
-          echo "sendgrid_api_key=\"${{ secrets.SENDGRID_API_KEY }}\"" > terraform.tfvars"
+          echo "sendgrid_api_key=\"${{ secrets.SENDGRID_API_KEY }}\"" > terraform.tfvars
           echo "email_from=\"${{ secrets.EMAIL_FROM }}\"" >> terraform.tfvars
           echo "name_from=\"${{ secrets.NAME_FROM }}\"" >> terraform.tfvars
+
 
       - name: Terraform Plan
         working-directory: ./infra
