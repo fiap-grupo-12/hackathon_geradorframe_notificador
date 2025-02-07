@@ -10,7 +10,7 @@ permissions:
   pull-requests: read
 
 env:
-  BUCKET_NAME: "lambdas-grupo12-fiap-2024-cesar-20250110"
+  BUCKET_NAME: "hackathon-grupo12-fiap-code-bucket"
   AWS_REGION: "us-east-1"
 
 jobs:

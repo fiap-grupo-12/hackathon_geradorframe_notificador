@@ -7,7 +7,7 @@ terraform {
     }
   }
   backend "s3" {
-    bucket = "terraform-tfstate-grupo12-fiap-2024-cesar-20250110"
+    bucket = "tfstate-grupo12-fiap-2025"
     key    = "notificacao.tfstate"
     region = "us-east-1"
   }
@@ -73,7 +73,7 @@ resource "aws_lambda_function" "send_email_function" {
   runtime       = "dotnet8"
   memory_size   = 512
   timeout       = 30
-  s3_bucket     = "lambdas-grupo12-fiap-2024-cesar-20250110"
+  s3_bucket     = "hackathon-grupo12-fiap-code-bucket"
   s3_key        = "lambda_enviar_email_function.zip"
 
   environment {
