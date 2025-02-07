@@ -11,7 +11,7 @@ permissions:
 
 env:
   BUCKET_NAME: "hackathon-grupo12-fiap-code-bucket"
-  AWS_REGION: "us-east-1"
+  AWS_REGION: "sa-east-1"
 
 jobs:
   SetupEnvironment:

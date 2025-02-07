@@ -9,12 +9,12 @@ terraform {
   backend "s3" {
     bucket = "tfstate-grupo12-fiap-2025"
     key    = "notificacao.tfstate"
-    region = "us-east-1"
+    region = "sa-east-1"
   }
 }
 
 provider "aws" {
-  region = "us-east-1"
+  region = "sa-east-1"
 }
 
 resource "aws_sqs_queue" "email_queue" {
