@@ -17,10 +17,6 @@ provider "aws" {
   region = "sa-east-1"
 }
 
-resource "aws_sqs_queue" "email_queue" {
-  name = "email-sqs-queue"
-}
-
 resource "aws_iam_role" "lambda_execution_role" {
   name = "lambda-execution-role"
   assume_role_policy = jsonencode({
@@ -50,7 +46,7 @@ resource "aws_iam_policy" "lambda_policy" {
           "sqs:GetQueueAttributes"
         ],
         Effect   = "Allow",
-        Resource = aws_sqs_queue.email_queue.arn
+        Resource = "arn:aws:sqs:sa-east-1:924131564635:sqs_notificacao"
       },
       {
         Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
@@ -88,7 +84,7 @@ resource "aws_lambda_function" "send_email_function" {
 }
 
 resource "aws_lambda_event_source_mapping" "sqs_to_lambda" {
-  event_source_arn = aws_sqs_queue.email_queue.arn
+  event_source_arn = "arn:aws:sqs:sa-east-1:924131564635:sqs_notificacao"
   function_name    = aws_lambda_function.send_email_function.arn
   batch_size       = 10
   enabled          = true
